@@ -15,9 +15,13 @@ int size = 4;
 int redirection = 0;
 int concurrency = 0;
 int buffer_size = 1024;
+int arguments_number = 0;
 
 int check_ampersand(char *line){
-	if(strcmp(line, "&") == 0){
+	if(strcmp(line, "\0") == 0){
+		return 0;
+	}
+	else if(strcmp(line, "&") == 0){
 		return 0;
 	}
 	return 1;
@@ -48,6 +52,9 @@ int check_redirection(char *arguments){
 		if(strcmp(argument, ">") == 0){
 			count++;
 			redirection = 1;
+			if(strcmp(arguments_copy, "\n") == 0 || strcmp(arguments_copy, "\0") == 0){
+				return 0;
+			}
 			
 		}		
 	}
@@ -57,6 +64,62 @@ int check_redirection(char *arguments){
 	redirection = 0;
 	
 	return 0;
+}
+
+char** get_arguments(char *command){
+	if(command == NULL){
+		return NULL;
+	}
+	else if(strcmp(command, "\0") == 0){
+		return NULL;
+	}
+	char **arguments = malloc(sizeof(char*) * MAX_SIZE);
+	char *argument;
+	int count = 0;
+	if(redirection == 1){
+		char *fp = strtok_r(command, ">", &command);
+		if(strcmp(command, "\0") == 0){
+			return NULL;
+		}
+		while((argument = strtok_r(fp, " ", &fp))){
+			arguments[count] = malloc(strlen(argument) + 1);
+			strcpy(arguments[count], argument);
+			count++;
+		}
+		
+	}
+	else{
+		while((argument = strtok_r(command, " ", &command))){
+			arguments[count] = malloc(strlen(argument) + 1);
+			strcpy(arguments[count], argument);
+			count++;
+		}
+	}
+	
+	arguments_number = count;
+	return arguments;
+}
+
+char* get_redirection(char *command){
+	char *file = strdup(command);
+	char *file1 = strtok_r(file, ">", &file);
+	if(strcmp(file, "\0") == 0){
+		char *file2;
+		if(file1[0] == ' '){
+			file2 = strtok_r(file1, " ", &file1);
+			return file2;
+		}
+		return file1;
+	}
+	else{
+		char *file2;
+		if(file[0] == ' '){
+			file2 = strtok_r(file, " ", &file);
+			return file2;
+		}
+		return file;
+	}
+	
 }
 
 char** separate_commands(char *line){
@@ -82,11 +145,11 @@ char** separate_commands(char *line){
 
 int check_sintaxis(char *command){
 	if(check_arguments(command) == 0){
-		printf("problema con argumentos %s\n", command);
-		return 0;
+		//printf("problema de args\n");
+		//return 0;
 	}
 	else if(check_redirection(command) == 0){
-		printf("problema con redireccion %s\n", command);
+		printf("problema de red\n");
 		return 0;
 	}
 	return 1;
@@ -147,6 +210,7 @@ int main(int argc, char *argv[]){
 					int childrens = 0;
 					while(strcmp(commands[i], "") != 0){
 						char *command = commands[i];
+						
                 				command_string = strtok_r(command, " ", &command);
 						fd = -1;
 						char **mp = mypath;
@@ -157,30 +221,34 @@ int main(int argc, char *argv[]){
 							fd = access(specificpath, X_OK);
 						}
 						if(check_sintaxis(command) == 0){
-							execute_error(153);
+							execute_error(176);
 						}
 						else if(fd==0){
-						
+							
 							if(redirection == 0){
 								int subprocess = fork();
 								if(subprocess < 0){
 									printf("Error launching the subprocess");
 								}else if(subprocess == 0){
-									char *myargs[3];
+									char *myargs[arguments_number + 2];
+									char **specargs = get_arguments(command);
 	  								myargs[0] = strdup(specificpath);
-	  								if(strcmp(command, "") == 0){
+	  								if(specargs == NULL){
 	  									myargs[1] = NULL;
 	  								}
 	  								else{
-	  									myargs[1] = strdup(command);
+	  									for(int k = 1; k < arguments_number + 1; k++){
+	  										myargs[k] = specargs[k - 1];
+	  									}
+	  									myargs[arguments_number + 1] = NULL;
 	  								}
-	  								myargs[2] = NULL;
 	  								execvp(myargs[0], myargs);
 								}else{
 									childrens++;
 								}
 							}
 							else if(redirection == 1){
+								char *direction = get_redirection(command);
 								int subprocess = fork();
 								if(subprocess < 0){
 									printf("Error launching the subprocess");
@@ -189,8 +257,7 @@ int main(int argc, char *argv[]){
 									char *arguments;
 									strcat(specificpath, " ");
 									if(command[0] == 62){
-										arguments = strtok_r(command, ">", &command);
-										execute_redirection(specificpath, arguments);
+										execute_redirection(specificpath, direction);
 									}
 									else{
 										arguments = strtok_r(command, ">", &command);
@@ -220,7 +287,7 @@ int main(int argc, char *argv[]){
 				}
 			}
 			else{
-				execute_error(223);
+				//execute_error(223);
 			}
    		}while(1);
 	}
