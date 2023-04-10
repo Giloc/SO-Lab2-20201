@@ -27,22 +27,6 @@ int check_ampersand(char *line){
 	return 1;
 }
 
-int check_arguments(char *arguments){
-	char *arguments_copy = strdup(arguments);
-	int count = 0;
-	char *argument;
-	while((argument = strtok_r(arguments_copy, " ", &arguments_copy))){
-		if(strcmp(argument, ">") == 0){
-			break;
-		}
-		count++;		
-	}
-	if(count <= 1){
-		return 1;
-	}
-	return 0;
-}
-
 int check_redirection(char *arguments){
 	redirection = 0;
 	char *arguments_copy = strdup(arguments);
@@ -55,7 +39,10 @@ int check_redirection(char *arguments){
 			if(strcmp(arguments_copy, "\n") == 0 || strcmp(arguments_copy, "\0") == 0){
 				return 0;
 			}
-			
+			argument = strtok_r(arguments_copy, " ", &arguments_copy);
+			if(strcmp(arguments_copy, "\0") != 0){
+				return 0;
+			}
 		}		
 	}
 	if(count <= 1){
@@ -131,8 +118,6 @@ char** separate_commands(char *line){
 		strcpy(commands[commands_count], command);
 		commands_count++;
 	}
-	//commands[commands_count] = malloc(strlen(line) + 1);
-	//strcpy(commands[commands_count], line);
 	commands[commands_count] = "";
 	if(commands_count > 1){
 		concurrency = 1;
@@ -144,12 +129,7 @@ char** separate_commands(char *line){
 }
 
 int check_sintaxis(char *command){
-	if(check_arguments(command) == 0){
-		//printf("problema de args\n");
-		//return 0;
-	}
-	else if(check_redirection(command) == 0){
-		printf("problema de red\n");
+	if(check_redirection(command) == 0){
 		return 0;
 	}
 	return 1;
@@ -161,7 +141,7 @@ void execute_redirection(char *command, char* filename){
 	
 	fp = popen(command, "r");
 	if(fp == NULL){
-		printf("feo\n");
+		printf("error abriendo proceso\n");
 		exit(1);
 	}
 	char *dir = strtok_r(filename, " ", &filename);
@@ -199,7 +179,12 @@ int main(int argc, char *argv[]){
 				char *fcommand = strdup(commands[0]);
                 		command_string = strtok_r(fcommand, " ", &fcommand);
 				if(strcmp(command_string, "exit") == 0){
-					execute_exit(0);
+					if(strcmp(fcommand, "\0") != 0){
+						execute_error();
+					}
+					else{
+						execute_exit(0);
+					}				
 				}else if(strcmp(command_string, "cd") == 0){
 					execute_cd(fcommand);
 				}else if(strcmp(command_string, "path") == 0){
@@ -221,7 +206,7 @@ int main(int argc, char *argv[]){
 							fd = access(specificpath, X_OK);
 						}
 						if(check_sintaxis(command) == 0){
-							execute_error(176);
+							execute_error();
 						}
 						else if(fd==0){
 							
@@ -272,7 +257,7 @@ int main(int argc, char *argv[]){
 							}
 							
 						}else{
-							execute_error(201);
+							execute_error();
 						}
 						i++;
 					}
@@ -287,15 +272,19 @@ int main(int argc, char *argv[]){
 				}
 			}
 			else{
-				//execute_error(223);
+				//execute_error();
 			}
    		}while(1);
 	}
 	else if(argc == 2){
-		//do something
+        	FILE *fd = fopen(argv[1], O_RDONLY);
+        	if (fd == NULL) {
+            		execute_error();
+            		exit(EXIT_FAILURE);
+        	}
 	}
 	else{
-		execute_error(220);
+		execute_error();
 	}
 	
 }

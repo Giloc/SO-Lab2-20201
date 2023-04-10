@@ -5,12 +5,23 @@
 #include "wish_utils.h"
 #define MAX_SIZE 100
 
-void execute_error(int line){
-	printf("An error has ocurred in line %i\n", line);
+void execute_error(){
+	printf("An error has ocurred\n");
 }
 
 void execute_exit(int value){
 	exit(0);
+}
+
+void execute_batch_error(int value, char *dir){
+	FILE *fp;
+	strcat(dir, ".err");
+	fp = fopen(dir, "w");
+	if(fp == NULL){
+		printf("error abriendo archivo\n");
+		exit(1);
+	}
+	fprintf(fp, "%s", "An error has ocurred in line %i\n");
 }
 
 void execute_cd(char *newpath){
